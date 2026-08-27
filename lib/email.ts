@@ -1,3 +1,4 @@
+import { sendInviteEmail } from './email'
 import nodemailer from 'nodemailer'
 
 const host = process.env.EMAIL_SERVER_HOST
@@ -12,33 +13,38 @@ if (host && user && pass) {
   transporter = nodemailer.createTransport({
     host,
     port,
-    secure: port === 465, // true for 465, false for other ports
+    secure: port === 465,
     auth: { user, pass },
   })
 }
 
-export async function sendInviteEmail(to: string, token: string) {
-  const url = `${process.env.NEXTAUTH_URL}/admin/invite/accept?token=${token}`
-  const subject = 'Invitation to become an ISN Admin'
+export async function sendVerificationEmail(to: string, token: string) {
+  const url = `${process.env.NEXTAUTH_URL}/api/auth/verify?token=${token}`
+  const subject = 'Verify your Intentional Students Network email'
   const html = `
-    <p>You have been invited to join Intentional Students Network as an administrator.</p>
-    <p>Click the link below to accept the invitation and create your admin account:</p>
+    <p>Welcome to ISN — please verify your email by clicking the link below:</p>
     <p><a href="${url}">${url}</a></p>
-    <p>This link will expire in 7 days.</p>
+    <p>This link expires in 24 hours.</p>
   `
-
   if (!transporter) {
-    // Fallback: log the invite if mail server is not configured. Still return success so the flow can continue in dev.
-    console.warn('Mail transporter not configured. Invite URL:', url)
+    console.warn('Mail transporter not configured. Verification URL:', url)
     return { info: 'logged', url }
   }
+  const info = await transporter.sendMail({ from, to, subject, html })
+  return info
+}
 
-  const info = await transporter.sendMail({
-    from,
-    to,
-    subject,
-    html,
-  })
-
+export async function sendPasswordResetEmail(to: string, token: string) {
+  const url = `${process.env.NEXTAUTH_URL}/auth/reset?token=${token}`
+  const subject = 'Reset your ISN password'
+  const html = `
+    <p>Use the link below to reset your password (valid 1 hour):</p>
+    <p><a href="${url}">${url}</a></p>
+  `
+  if (!transporter) {
+    console.warn('Mail transporter not configured. Password reset URL:', url)
+    return { info: 'logged', url }
+  }
+  const info = await transporter.sendMail({ from, to, subject, html })
   return info
 }
